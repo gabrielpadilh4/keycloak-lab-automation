@@ -1,0 +1,3 @@
+- ansible.builtin.import_playbook: setup-keycloak-container-environment.yml
+
+- ansible.builtin.import_playbook: setup-keycloak-realm-and-user-federation.yml

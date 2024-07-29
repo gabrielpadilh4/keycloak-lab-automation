@@ -1,0 +1,5 @@
+ansible-navigator:
+  execution-environment: 
+    enabled: false
+  playbook-artifact:
+    enable: false

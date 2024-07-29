@@ -1,0 +1,115 @@
+- name: Add my local LDAP server as an Keycloak user federation
+  hosts: localhost
+  become: false
+  gather_facts: false
+  vars:
+    admin_user: admin
+    admin_password: admin
+    auth_keycloak_url: "http://0.0.0.0:8080"
+    auth_realm: master
+    target_realm: test
+    user_federation_name: ldap-local
+    ldap_connection_url: "ldap://keycloak-ldap:389"
+    users_dn: ou=People,dc=keycloak,dc=org
+    bind_dn: cn=admin,dc=keycloak,dc=org
+    bind_credential: admin
+  tasks:
+    - name: Ensure {{ target_realm }} realm exists
+      community.general.keycloak_realm:
+        auth_keycloak_url: "{{ auth_keycloak_url }}"
+        auth_realm: "{{ auth_realm }}"
+        auth_username: "{{ admin_user }}"
+        auth_password: "{{ admin_password }}"
+        id: "{{ target_realm }}"
+        realm: "{{ target_realm }}"
+        state: present
+    
+    - name: Create LDAP user federation
+      community.general.keycloak_user_federation:
+        auth_keycloak_url: "{{ auth_keycloak_url }}"
+        auth_realm: "{{ auth_realm }}"
+        auth_username: "{{ admin_user }}"
+        auth_password: "{{ admin_password }}"
+        realm: "{{ target_realm }}"
+        name: "{{ user_federation_name }}"
+        state: present
+        provider_id: ldap
+        provider_type: org.keycloak.storage.UserStorageProvider
+        config:
+          editMode: READ_ONLY
+          vendor: rhds
+          usernameLDAPAttribute: uid
+          rdnLDAPAttribute: uid
+          uuidLDAPAttribute: uid
+          userObjectClasses: inetOrgPerson, organizationalPerson
+          connectionUrl: "{{ ldap_connection_url }}"
+          usersDn: "{{ users_dn }}"
+          authType: simple
+          bindDn: "{{ bind_dn }}"
+          bindCredential: "{{ bind_credential }}"
+          trustEmail: true
+          krbPrincipalAttribute: krbPrincipalName
+        mappers:
+          - name: email
+            providerId: user-attribute-ldap-mapper
+            config:
+              user.model.attribute: email
+              ldap.attribute: mail
+              read.only: true
+              always.read.value.from.ldap: false
+              is.mandatory.in.ldap: false
+
+          - name: username
+            providerId: user-attribute-ldap-mapper
+            config:
+              user.model.attribute: username
+              ldap.attribute: uid
+              read.only: true
+              is.mandatory.in.ldap: true
+              always.read.value.from.ldap: false
+
+          - name: modify date
+            providerId: user-attribute-ldap-mapper
+            config:
+              is.mandatory.in.ldap: false
+              user.model.attribute: modifyTimestamp
+              ldap.attribute: modifyTimestamp
+              read.only: true
+              always.read.value.from.ldap: true
+
+          - name: first name
+            providerId: user-attribute-ldap-mapper
+            config:
+              user.model.attribute: firstName
+              ldap.attribute: cn
+              read.only: true
+              always.read.value.from.ldap: true
+              is.mandatory.in.ldap: true
+
+          - name: last name
+            providerId: user-attribute-ldap-mapper
+            config:
+              user.model.attribute: lastName
+              ldap.attribute: sn
+              read.only: true
+              always.read.value.from.ldap: true
+              is.mandatory.in.ldap: true
+
+          - name: creation date
+            providerId: user-attribute-ldap-mapper
+            config:
+              user.model.attribute: createTimestamp
+              ldap.attribute: createTimestamp
+              read.only: true
+              always.read.value.from.ldap: true
+              is.mandatory.in.ldap: false
+      register: user_federation
+      changed_when: "user_federation['end_state'] != user_federation['existing']"
+
+    - name: Existing configuration
+      ansible.builtin.debug:
+        var: user_federation['existing']
+
+    - name: End state
+      ansible.builtin.debug:
+        var: user_federation['end_state']
