@@ -1,0 +1,83 @@
+- name: Start Keycloak Environment
+  become: false
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../vars/keycloak.yml
+  tasks:
+    - name: Start a postgresql container, ldap and keycloak container
+      block:
+        - name: Ensure {{ keycloak_network }} exists
+          containers.podman.podman_network:
+            name: "{{ keycloak_network }}"
+            
+        - name: Ensure {{ keycloak_database_data }} directory exists
+          ansible.builtin.file:
+            path: "{{ keycloak_database_data }}"
+            state: directory
+
+        - name: Ensure container {{ keycloak_database }} is started
+          containers.podman.podman_container:
+            name: "{{ keycloak_database }}"
+            image: "{{ keycloak_database_image }}"
+            state: started
+            publish:
+              - "5432:5432"
+            network:
+              - "{{ keycloak_network }}"
+            volumes:
+              - "{{ keycloak_database_data }}:/var/lib/postgresql/data:Z"
+            env:
+              POSTGRES_PASSWORD: keycloak
+              POSTGRES_USER: keycloak
+              POSTGRES_DB: keycloak
+
+        # Import the LDIF -> https://github.com/keycloak/keycloak/blob/release/22.0/examples/ldap/ldap-example-users.ldif
+        # BindDN: cn=admin,dc=keycloak,dc=org
+        # BindCredential: admin
+        # Users DN: ou=People,dc=keycloak,dc=org 
+
+        - name: Ensure container {{ keycloak_ldap }} is started
+          containers.podman.podman_container:
+            name: "{{ keycloak_ldap }}"
+            image: "{{ keycloak_ldap_image }}"
+            state: started
+            publish:
+              - "10389:389"
+              - "10636:636"
+            network:
+              - "{{ keycloak_network }}"
+            env:
+              LDAP_ORGANISATION: keycloak
+              LDAP_DOMAIN: keycloak.org
+              LDAP_ADMIN_PASSWORD: admin
+
+        - name: Ensure container {{ keycloak_name }} is started
+          containers.podman.podman_container:
+            name: "{{ keycloak_name }}"
+            image: "{{ keycloak_image }}"
+            state: started
+            publish:
+              - "8080:8080"
+              - "8443:8443"
+            command: start-dev
+            network:
+              - "{{ keycloak_network }}"
+            env:
+              KEYCLOAK_ADMIN: admin
+              KEYCLOAK_ADMIN_PASSWORD: admin
+              KC_DB_URL: "jdbc:postgresql://{{ keycloak_database }}:5432/keycloak"
+              KC_DB_USERNAME: keycloak
+              KC_DB_PASSWORD: keycloak
+              KC_DB: postgres
+
+        - name: Ensure {{ keycloak_name }} container is responding requests
+          ansible.builtin.uri:
+            url: "{{ auth_keycloak_url }}"
+          retries: 3
+          delay: 10
+      
+      rescue:
+        - name: Failed to start containers
+          ansible.builtin.debug:
+            msg: "Failed to start environment"
