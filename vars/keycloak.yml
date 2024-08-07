@@ -9,7 +9,6 @@ keycloak_image: "registry.redhat.io/rhbk/keycloak-rhel9:24-10"
 auth_keycloak_url: "http://0.0.0.0:8080"
 admin_user: admin
 admin_password: admin
-auth_keycloak_url: "http://0.0.0.0:8080"
 auth_realm: master
 target_realm: test
 user_federation_name: ldap-local
