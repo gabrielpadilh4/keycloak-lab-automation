@@ -97,3 +97,18 @@
               read.only: true
               always.read.value.from.ldap: true
               is.mandatory.in.ldap: false
+              
+          - name: group mappers
+            providerId: group-ldap-mapper
+            config:
+              membership.attribute.type: DN
+              group.name.ldap.attribute: cn
+              membership.user.ldap.attribute: uid
+              preserve.group.inheritance: true
+              groups.dn: "ou=RealmRoles,dc=keycloak,dc=org"
+              mode: LDAP_ONLY
+              user.roles.retrieve.strategy: LOAD_GROUPS_BY_MEMBER_ATTRIBUTE
+              membership.ldap.attribute: member
+              ignore.missing.groups: false
+              group.object.classes: groupOfNames
+              groups.path: "/"
