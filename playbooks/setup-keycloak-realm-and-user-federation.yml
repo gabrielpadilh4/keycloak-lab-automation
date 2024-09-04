@@ -5,14 +5,14 @@
   vars_files:
     - ../vars/keycloak.yml
   tasks:
-    - name: Ensure {{ target_realm }} realm exists
+    - name: Ensure {{ realm['name'] }} realm exists
       community.general.keycloak_realm:
-        auth_keycloak_url: "{{ auth_keycloak_url }}"
-        auth_realm: "{{ auth_realm }}"
-        auth_username: "{{ admin_user }}"
-        auth_password: "{{ admin_password }}"
-        id: "{{ target_realm }}"
-        realm: "{{ target_realm }}"
+        auth_keycloak_url: "{{ keycloak['auth_url'] }}"
+        auth_realm: master
+        auth_username: "{{ keycloak['admin_user'] }}"
+        auth_password: "{{ keycloak['admin_password'] }}"
+        id: "{{ realm['name'] }}"
+        realm: "{{ realm['name'] }}"
         enabled: true
         state: present
     
@@ -20,12 +20,12 @@
       register: user_federation
       changed_when: "user_federation['end_state'] != user_federation['existing']"
       community.general.keycloak_user_federation:
-        auth_keycloak_url: "{{ auth_keycloak_url }}"
-        auth_realm: "{{ auth_realm }}"
-        auth_username: "{{ admin_user }}"
-        auth_password: "{{ admin_password }}"
-        realm: "{{ target_realm }}"
-        name: "{{ user_federation_name }}"
+        auth_keycloak_url: "{{ keycloak['auth_url'] }}"
+        auth_realm: master
+        auth_username: "{{ keycloak['admin_user'] }}"
+        auth_password: "{{ keycloak['admin_password'] }}"
+        realm: "{{ realm['name'] }}"
+        name: "{{ realm['ldap_federation_name'] }}"
         state: present
         provider_id: ldap
         provider_type: org.keycloak.storage.UserStorageProvider
@@ -36,11 +36,11 @@
           rdnLDAPAttribute: uid
           uuidLDAPAttribute: uid
           userObjectClasses: inetOrgPerson, organizationalPerson
-          connectionUrl: "{{ ldap_connection_url }}"
-          usersDn: "{{ users_dn }}"
+          connectionUrl: "ldap://{{ ldap['container_name'] }}:{{ ldap['ldap_port'] }}"
+          usersDn: "{{ ldap['users_dn'] }}"
           authType: simple
-          bindDn: "{{ bind_dn }}"
-          bindCredential: "{{ bind_credential }}"
+          bindDn: "{{ ldap['bind_dn'] }}"
+          bindCredential: "{{ ldap['admin_password'] }}"
           trustEmail: true
           krbPrincipalAttribute: krbPrincipalName
         mappers:

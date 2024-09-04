@@ -7,80 +7,84 @@
   tasks:
     - name: Start a postgresql container, ldap and keycloak container
       block:
-        - name: Ensure {{ keycloak_network }} exists
+        - name: "Ensure {{ keycloak['network'] }} exists"
           containers.podman.podman_network:
-            name: "{{ keycloak_network }}"
-            
-        - name: Ensure {{ keycloak_database_data }} directory exists
+            name: "{{ keycloak['network'] }}"
+           
+        - name: Ensure {{ postgres['database_data'] }} directory exists
           ansible.builtin.file:
-            path: "{{ keycloak_database_data }}"
+            path: "{{ postgres['database_data'] }}"
             state: directory
 
-        - name: Ensure container {{ keycloak_database }} is started
+        - name: Ensure container {{ postgres['container_name'] }} is started
           containers.podman.podman_container:
-            name: "{{ keycloak_database }}"
-            image: "{{ keycloak_database_image }}"
+            name: "{{ postgres['container_name'] }}"
+            image: "{{ postgres['image'] }}"
             state: started
             publish:
-              - "5432:5432"
+              - "{{ postgres['localhost_port']  }}:{{ postgres['port'] }}"
             network:
-              - "{{ keycloak_network }}"
+              - "{{ keycloak['network'] }}"
             volumes:
-              - "{{ keycloak_database_data }}:/var/lib/postgresql/data:Z"
+              - "{{ postgres['database_data'] }}:/var/lib/postgresql/data:Z"
             env:
-              POSTGRES_PASSWORD: keycloak
-              POSTGRES_USER: keycloak
-              POSTGRES_DB: keycloak
+              POSTGRES_USER: "{{ postgres['user'] }}"
+              POSTGRES_PASSWORD: "{{ postgres['password'] }}"
+              POSTGRES_DB: "{{ postgres['db'] }}"
 
-        # Import the LDIF -> https://github.com/keycloak/keycloak/blob/release/22.0/examples/ldap/ldap-example-users.ldif
-        # BindDN: cn=admin,dc=keycloak,dc=org
-        # BindCredential: admin
-        # Users DN: ou=People,dc=keycloak,dc=org 
-
-        - name: Ensure container {{ keycloak_ldap }} is started
+        - name: Ensure container {{ ldap['container_name'] }} is started
           containers.podman.podman_container:
-            name: "{{ keycloak_ldap }}"
-            image: "{{ keycloak_ldap_image }}"
+            name: "{{ ldap['container_name'] }}"
+            image: "{{ ldap['image'] }}"
             state: started
             publish:
-              - "10389:389"
-              - "10636:636"
+              - "{{ ldap['localhost_ldap_port'] }}:{{ ldap['ldap_port'] }}"
+              - "{{ ldap['localhost_ldaps_port'] }}:{{ ldap['ldaps_port'] }}"
             network:
-              - "{{ keycloak_network }}"
+              - "{{ keycloak['network'] }}"
             env:
-              LDAP_ORGANISATION: keycloak
-              LDAP_DOMAIN: keycloak.org
-              LDAP_ADMIN_PASSWORD: admin
+              LDAP_ORGANISATION: "{{ ldap['organisation'] }}"
+              LDAP_DOMAIN: "{{ ldap['domain'] }}"
+              LDAP_ADMIN_PASSWORD: "{{ ldap['admin_password'] }}"
+
+        - name: Download LDAP file
+          ansible.builtin.get_url:
+            url: "{{ ldap['ldif'] }}"
+            dest: /tmp/ldif-example.ldif
 
         - name: Add entries from ldif into LDAP server
           ansible.builtin.shell: |
-            curl https://raw.githubusercontent.com/keycloak/keycloak/release/22.0/examples/ldap/ldap-example-users.ldif > ldap-example-users.ldif
-            ldapadd -x -H ldap://localhost:10389 -D "{{ bind_dn }}" -w {{ bind_credential }} -f ldap-example-users.ldif -c
+            ldapadd -x -H ldap://localhost:10389 -D "{{ ldap['bind_dn'] }}" -w {{ ldap['admin_password'] }} -f /tmp/ldif-example.ldif -c
           register: ret
           failed_when: (ret.rc != 68)
 
-        - name: Ensure container {{ keycloak_name }} is started
+        - name: Remove ldif file
+          ansible.builtin.file:
+            path: /tmp/ldif-example.ldif
+            state: absent
+
+        - name: Ensure container {{ keycloak['container_name'] }} is started
           containers.podman.podman_container:
-            name: "{{ keycloak_name }}"
-            image: "{{ keycloak_image }}"
+            name: "{{ keycloak['container_name'] }}"
+            image: "{{ keycloak['image'] }}"
             state: started
             publish:
-              - "8080:8080"
-              - "8443:8443"
+              - "{{ keycloak['http_port'] }}:{{ keycloak['http_port'] }}"
+              - "{{ keycloak['https_port'] }}:{{ keycloak['https_port'] }}"
             command: start-dev
             network:
-              - "{{ keycloak_network }}"
+              - "{{ keycloak['network'] }}"
             env:
-              KEYCLOAK_ADMIN: admin
-              KEYCLOAK_ADMIN_PASSWORD: admin
-              KC_DB_URL: "jdbc:postgresql://{{ keycloak_database }}:5432/keycloak"
-              KC_DB_USERNAME: keycloak
-              KC_DB_PASSWORD: keycloak
+              KEYCLOAK_ADMIN: "{{ keycloak['admin_user'] }}"
+              KEYCLOAK_ADMIN_PASSWORD: "{{ keycloak['admin_password'] }}"
+              KC_DB_URL: "{{ keycloak['db_url'] }}"
+              KC_DB_USERNAME: "{{ postgres['user'] }}"
+              KC_DB_PASSWORD: "{{ postgres['password'] }}"
               KC_DB: postgres
 
-        - name: Ensure {{ keycloak_name }} container is responding requests
+        - name: Ensure {{ keycloak['container_name'] }} container is responding requests
           ansible.builtin.uri:
-            url: "{{ auth_keycloak_url }}"
+            url: "{{ keycloak['auth_url'] }}"
           retries: 3
           delay: 10
       

@@ -1,18 +1,38 @@
-keycloak_network: keycloak_net
-keycloak_database: "keycloak-postgresql-database"
-keycloak_database_image: "postgres:13"
-keycloak_database_data: "/tmp/{{ keycloak_database }}"
-keycloak_ldap: "keycloak-ldap"
-keycloak_ldap_image: "osixia/openldap:1.5.0"
-keycloak_name: keycloak
-keycloak_image: "registry.redhat.io/rhbk/keycloak-rhel9:24-10"
-auth_keycloak_url: "http://0.0.0.0:8080"
-admin_user: admin
-admin_password: admin
-auth_realm: master
-target_realm: test
-user_federation_name: ldap-local
-ldap_connection_url: "ldap://keycloak-ldap:389"
-users_dn: ou=People,dc=keycloak,dc=org
-bind_dn: cn=admin,dc=keycloak,dc=org
-bind_credential: admin
+postgres:
+  container_name: postgres
+  image: "postgres:13"
+  user: keycloak
+  password: keycloak
+  db: keycloak
+  database_data: "/tmp/keycloak"
+  port: 5432
+  localhost_port: 5432
+
+ldap:
+  container_name: "keycloak-ldap"
+  image: "osixia/openldap:1.5.0"
+  organisation: keycloak
+  domain: keycloak.org
+  admin_password: admin
+  bind_dn: cn=admin,dc=keycloak,dc=org
+  users_dn: ou=People,dc=keycloak,dc=org
+  ldif: https://raw.githubusercontent.com/keycloak/keycloak/release/22.0/examples/ldap/ldap-example-users.ldif
+  ldap_port: 389
+  localhost_ldap_port: 10389
+  ldaps_port: 636
+  localhost_ldaps_port: 10636
+
+keycloak:
+  container_name: keycloak
+  image: "registry.redhat.io/rhbk/keycloak-rhel9:24-10"
+  network: keycloak_net
+  auth_url: "http://0.0.0.0:8080"
+  admin_user: admin
+  admin_password: admin
+  http_port: 8080
+  https_port: 8443
+  db_url: jdbc:postgresql://{{ postgres['container_name'] }}:5432/{{ postgres['db']}}
+
+realm:
+  name: test
+  ldap_federation_name: ldap-local
