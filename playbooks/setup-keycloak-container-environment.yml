@@ -52,6 +52,13 @@
               LDAP_DOMAIN: keycloak.org
               LDAP_ADMIN_PASSWORD: admin
 
+        - name: Add entries from ldif into LDAP server
+          ansible.builtin.shell: |
+            curl https://raw.githubusercontent.com/keycloak/keycloak/release/22.0/examples/ldap/ldap-example-users.ldif > ldap-example-users.ldif
+            ldapadd -x -H ldap://localhost:10389 -D "{{ bind_dn }}" -w {{ bind_credential }} -f ldap-example-users.ldif -c
+          register: ret
+          failed_when: (ret.rc != 68)
+
         - name: Ensure container {{ keycloak_name }} is started
           containers.podman.podman_container:
             name: "{{ keycloak_name }}"
