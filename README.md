@@ -53,8 +53,6 @@ Before running the playbook, ensure you have the following installed on your loc
    ```sh
    ansible-navigator run playbook.yml 
    ```
-5. (Optional) Load the [ldif file](https://github.com/keycloak/keycloak/blob/release/22.0/examples/ldap/ldap-example-users.ldif) in the LDAP container
-
 # Contributing
 Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
 
