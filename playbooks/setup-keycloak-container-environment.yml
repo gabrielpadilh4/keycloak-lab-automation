@@ -81,6 +81,7 @@
               KC_DB_USERNAME: "{{ postgres['user'] }}"
               KC_DB_PASSWORD: "{{ postgres['password'] }}"
               KC_DB: postgres
+              KC_LOG_LEVEL: "{{ keycloak['log_level'] | default('INFO') }}"
 
         - name: Ensure {{ keycloak['container_name'] }} container is responding requests
           ansible.builtin.uri:

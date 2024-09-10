@@ -32,6 +32,7 @@ keycloak:
   http_port: 8080
   https_port: 8443
   db_url: jdbc:postgresql://{{ postgres['container_name'] }}:5432/{{ postgres['db']}}
+  log_level: "TRACE"
 
 realm:
   name: test
